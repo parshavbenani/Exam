@@ -1,0 +1,124 @@
+var q = (from s in _dbContext.students
+                    join sc in _dbContext.studentCourses on s.StudentId equals sc.StudentId into scs
+                    from scsresult in scs.DefaultIfEmpty()
+                    join c in _dbContext.courses on scsresult.CourseId equals c.CourseId into scsc
+                    from courseresult in scsc.DefaultIfEmpty() group new { s,courseresult } by new { s.StudentId,s.Name,s.Email,s.ContactNo,s.RollNo,s.Address,s.State,s.City,s.Zipcode } into grp select new StudentVM
+                    {
+                        StudentId=grp.Key.StudentId,
+                        Name = grp.Key.Name,
+                        Email = grp.Key.Email,
+                        ContactNo = grp.Key.ContactNo.ToString(),
+                        RollNo = grp.Key.RollNo,
+                        Address = grp.Key.Address,
+                        State = grp.Key.State,
+                        City = grp.Key.City,
+                        Zipcode = grp.Key.Zipcode.ToString(),
+                        CourseTotalPrice=grp.Sum(x=>x.courseresult.CoursePrice).ToString(),
+                    });
+
+            return View(q);
+
+--------------------------------------
+ <form method="post" asp-action="Index" enctype="multipart/form-data" >
+                <table>
+                    <tr>
+                        <div class="mb-3">
+                            <label>File</label>
+                            <input type="file" id="uploadBox" name="file" class="form-control" />
+                        </div>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <button type="submit" class="btn btn-primary" style="width:150px">Upload</button>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+--------------------------------------------
+ [HttpPost]
+        public async Task<IActionResult> Index(IFormFile file)
+        {
+            var list = new List<Student>();
+           // var list = new List<Countries>();
+            using (var stream = new MemoryStream())
+            {
+                await file.CopyToAsync(stream);
+                using (var package = new ExcelPackage(stream))
+                {
+
+                    ExcelWorksheet worksheet = package.Workbook.Worksheets.First();;
+                    var rowcount = worksheet.Dimension.Rows;
+                    var colcount = worksheet.Dimension.Columns;
+
+                    for (int row = 2; row < rowcount; row++)
+                    {
+                        list.Add(new Student
+                        {
+                            Name = worksheet.Cells[row, 1].Value.ToString().Trim(),
+                            Email = worksheet.Cells[row, 2].Value.ToString().Trim(),
+                            ContactNo = Convert.ToDouble(worksheet.Cells[row, 3].Value.ToString().Trim()),
+                            RollNo = worksheet.Cells[row, 4].Value.ToString().Trim(),
+                            Address = worksheet.Cells[row, 5].Value.ToString().Trim(),
+                            City = worksheet.Cells[row, 6].Value.ToString().Trim(),
+                            State = worksheet.Cells[row, 7].Value.ToString().Trim(),
+                            Zipcode = Convert.ToInt32(worksheet.Cells[row, 8].Value.ToString().Trim())
+                        });
+                    }
+                }
+            }
+            //SaveDataToDb(list);
+            _dbContext.students.AddRange(list);
+            await _dbContext.SaveChangesAsync();
+
+            //using (var stream = new MemoryStream())
+            //{
+            //    await file.CopyToAsync(stream);
+            //    using (var package = new ExcelPackage(stream))
+            //    {
+            //        ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+            //        var rowcount = worksheet.Dimension.Rows;
+            //        for(int row = 2; row < rowcount; row++)
+            //        {
+            //            list.Add(new Student
+            //            {
+            //                Name = worksheet.Cells[row, 1].Value.ToString().Trim(),
+            //                Email = worksheet.Cells[row, 2].Value.ToString().Trim(),
+            //                ContactNo = Convert.ToDouble(worksheet.Cells[row, 3].Value.ToString().Trim()),
+            //                RollNo = worksheet.Cells[row, 4].Value.ToString().Trim(),
+            //                Address = worksheet.Cells[row, 5].Value.ToString().Trim(),
+            //                City = worksheet.Cells[row, 6].Value.ToString().Trim(),
+            //                State = worksheet.Cells[row, 7].Value.ToString().Trim(),
+            //                Zipcode = Convert.ToInt32(worksheet.Cells[row, 8].Value.ToString().Trim())
+            //            });
+            //        }
+            //    }
+            //}
+            //List<Student> users = new List<Student>();
+            //System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            //using (var stream = System.IO.File.Open(file.FileName, FileMode.Open, FileAccess.Read))
+            //{
+            //    using (var reader = ExcelReaderFactory.CreateReader(stream))
+            //    {
+            //        while (reader.Read()) //Each row of the file
+            //        {
+            //            users.Add(new Student
+            //            {
+            //                StudentId = reader.GetInt32(0),
+            //                Name = reader.GetValue(0).ToString(),
+            //                Email = reader.GetValue(1).ToString(),
+            //                ContactNo = Convert.ToDouble(reader.GetValue(2)),
+            //                RollNo = reader.GetValue(3).ToString(),
+            //                Address = reader.GetValue(4).ToString(),
+            //                City = reader.GetValue(5).ToString(),
+            //                State = reader.GetValue(6).ToString(),
+            //                Zipcode = Convert.ToInt32(reader.GetValue(7)),
+
+            //            });
+            //            _dbContext.SaveChanges();
+
+            //        }
+            //    }
+            //}
+          //  return Ok(users);
+            return View(list);
+        }
