@@ -1,0 +1,38 @@
+<form method="post" asp-action="setdata" enctype="multipart/form-data">
+                <input type="file" name="file" />
+                <input type="submit" value="submit" />
+            </form>
+------------------------
+[HttpPost]
+        public async Task<IActionResult> setdata(IFormFile file)
+        {
+            var list = new List<Student>();
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            using (var stream = file.OpenReadStream())
+            {
+                using (var reader = ExcelReaderFactory.CreateReader(stream))
+                {
+
+                    while (reader.Read()) //Each row of the file
+                    {
+                        list.Add(new Student
+                        {
+                            Name = reader.GetValue(0).ToString(),
+                            Email = reader.GetValue(1).ToString(),
+                            ContactNo = Convert.ToDouble(reader.GetValue(2).ToString()),
+                            RollNo = reader.GetValue(3).ToString(),
+                            Address = reader.GetValue(4).ToString(),
+                            City = reader.GetValue(5).ToString(),
+                            State = reader.GetValue(6).ToString(),
+                            Zipcode = Convert.ToInt32(reader.GetValue(7).ToString())                           
+                        });
+
+                    }
+                }
+
+            }
+            _dbContext.students.AddRange(list);
+            await _dbContext.SaveChangesAsync();
+            TempData["success"] = "File Uploaded Successfully";
+            return RedirectToAction("Index");
+        }
